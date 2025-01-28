@@ -7,6 +7,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <time.h>
+#include <fcntl.h>  // Tambahkan header untuk fcntl
+#include <errno.h>  // Tambahkan header untuk errno
 
 #define MAX_PACKET_SIZE (256 * 1024)
 
